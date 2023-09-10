@@ -10,11 +10,28 @@ The repo is based on [LRGB](https://github.com/vijaydwivedi75/lrgb), it is built
 
 We present the **Long Range Graph Benchmark (LRGB)** with 5 graph learning datasets that arguably require
 long-range reasoning to achieve strong performance in a given task. 
-- PascalVOC-SP
-- COCO-SP
-- PCQM-Contact 
-- Peptides-func
-- Peptides-struct 
+- [x] PascalVOC-SP
+- [x] COCO-SP
+- [ ] PCQM-Contact 
+- [x] Peptides-func
+- [x] Peptides-struct 
+
+9/30/2023: Now support PascalVOC-SP, PascalVOC-SP, Peptides-func, Peptides-struct
+
+``` python
+# PascalVOC-SP
+python datasets/voc_superpixels.py
+
+# COCO-SP
+python datasets/coco_superpixels.py
+
+# Peptides-func
+python datasets/peptides_functional.py
+
+
+# Peptides-struct 
+python datasets/peptides_structural.py
+```
 
 ### Overview of Datasets
 
