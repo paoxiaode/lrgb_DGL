@@ -4,12 +4,6 @@
 
 The repo is based on [LRGB](https://github.com/vijaydwivedi75/lrgb), it is built for DGL library.
 
-<img src="https://i.imgur.com/2LKoGbu.png" align="right" width="275"/>
-
-
-
-We present the **Long Range Graph Benchmark (LRGB)** with 5 graph learning datasets that arguably require
-long-range reasoning to achieve strong performance in a given task. 
 - [x] PascalVOC-SP
 - [x] COCO-SP
 - [ ] PCQM-Contact 
@@ -17,6 +11,14 @@ long-range reasoning to achieve strong performance in a given task.
 - [x] Peptides-struct 
 
 9/30/2023: Now support PascalVOC-SP, PascalVOC-SP, Peptides-func, Peptides-struct
+
+<img src="https://i.imgur.com/2LKoGbu.png" align="right" width="275"/>
+
+
+
+We present the **Long Range Graph Benchmark (LRGB)** with 5 graph learning datasets that arguably require
+long-range reasoning to achieve strong performance in a given task. 
+
 
 ``` python
 # PascalVOC-SP
