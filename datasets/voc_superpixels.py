@@ -19,17 +19,17 @@ from util import download_url
 class VOCSuperpixels_DGL(object):
     r"""The VOCSuperpixels dataset which contains image superpixels and a semantic segmentation label
     for each node superpixel.
-    
+
     Construction and Preparation:
-    - The superpixels are extracted in a similar fashion as the MNIST and CIFAR10 superpixels. 
+    - The superpixels are extracted in a similar fashion as the MNIST and CIFAR10 superpixels.
     - In VOCSuperpixels, the number of superpixel nodes <=500. (Note that it was <=75 for MNIST and
     <=150 for CIFAR10.)
     - The labeling of each superpixel node is done with the same value of the original pixel ground
     truth  that is on the mean coord of the superpixel node
-    
+
     - Based on the SBD annotations from 11355 images taken from the PASCAL VOC 2011 dataset. Original
     source `here<https://github.com/shelhamer/fcn.berkeleyvision.org/tree/master/data/pascal>`_.
-    
+
     num_classes = 21
     ignore_label = 255
 
@@ -37,7 +37,7 @@ class VOCSuperpixels_DGL(object):
     0=background, 1=aeroplane, 2=bicycle, 3=bird, 4=boat, 5=bottle, 6=bus, 7=car, 8=cat, 9=chair, 10=cow,
     11=diningtable, 12=dog, 13=horse, 14=motorbike, 15=person, 16=potted plant, 17=sheep, 18=sofa, 19=train,
     20=tv/monitor
-    
+
     Splitting:
     - In the original image dataset there are only train and val splitting.
     - For VOCSuperpixels, we maintain train, val and test splits where the train set is AS IS. The original
@@ -58,7 +58,7 @@ class VOCSuperpixels_DGL(object):
             only spatial coordinates of superpixel nodes.
             If :obj: `"edge_wt_coord_feat"`, the graphs are 8-nn graphs with the edge weights computed based on
             combination of spatial coordinates and feature values of superpixel nodes.
-            If :obj: `"edge_wt_region_boundary"`, the graphs region boundary graphs where two regions (i.e. 
+            If :obj: `"edge_wt_region_boundary"`, the graphs region boundary graphs where two regions (i.e.
             superpixel nodes) have an edge between them if they share a boundary in the original image.
             (default: :obj:`"edge_wt_region_boundary"`)
         slic_compactness (int, optional): Option to select compactness of slic that was used for superpixels
@@ -76,54 +76,67 @@ class VOCSuperpixels_DGL(object):
             value, indicating whether the data object should be included in the
             final dataset. (default: :obj:`None`)
     """
-    
+
     url = {
         10: {
-        'edge_wt_only_coord': 'https://www.dropbox.com/s/rk6pfnuh7tq3t37/voc_superpixels_edge_wt_only_coord.zip?dl=1',
-        'edge_wt_coord_feat': 'https://www.dropbox.com/s/2a53nmfp6llqg8y/voc_superpixels_edge_wt_coord_feat.zip?dl=1',
-        'edge_wt_region_boundary': 'https://www.dropbox.com/s/6pfz2mccfbkj7r3/voc_superpixels_edge_wt_region_boundary.zip?dl=1'
+            "edge_wt_only_coord": "https://www.dropbox.com/s/rk6pfnuh7tq3t37/voc_superpixels_edge_wt_only_coord.zip?dl=1",
+            "edge_wt_coord_feat": "https://www.dropbox.com/s/2a53nmfp6llqg8y/voc_superpixels_edge_wt_coord_feat.zip?dl=1",
+            "edge_wt_region_boundary": "https://www.dropbox.com/s/6pfz2mccfbkj7r3/voc_superpixels_edge_wt_region_boundary.zip?dl=1",
         },
         30: {
-        'edge_wt_only_coord': 'https://www.dropbox.com/s/toqulkdpb1jrswk/voc_superpixels_edge_wt_only_coord.zip?dl=1',
-        'edge_wt_coord_feat': 'https://www.dropbox.com/s/xywki8ysj63584d/voc_superpixels_edge_wt_coord_feat.zip?dl=1',
-        'edge_wt_region_boundary': 'https://www.dropbox.com/s/8x722ai272wqwl4/voc_superpixels_edge_wt_region_boundary.zip?dl=1'
-        }
+            "edge_wt_only_coord": "https://www.dropbox.com/s/toqulkdpb1jrswk/voc_superpixels_edge_wt_only_coord.zip?dl=1",
+            "edge_wt_coord_feat": "https://www.dropbox.com/s/xywki8ysj63584d/voc_superpixels_edge_wt_coord_feat.zip?dl=1",
+            "edge_wt_region_boundary": "https://www.dropbox.com/s/8x722ai272wqwl4/voc_superpixels_edge_wt_region_boundary.zip?dl=1",
+        },
     }
 
-    def __init__(self, root="data", name='edge_wt_region_boundary', slic_compactness=30, split='train'):
+    def __init__(
+        self,
+        root="data",
+        name="edge_wt_region_boundary",
+        slic_compactness=30,
+        split="train",
+    ):
         self.root = osp.join(root, "voc_superpixels")
         self.name = name
         self.slic_compactness = slic_compactness
-        assert split in ['train', 'val', 'test']
-        assert name in ['edge_wt_only_coord', 'edge_wt_coord_feat', 'edge_wt_region_boundary']
+        assert split in ["train", "val", "test"]
+        assert name in [
+            "edge_wt_only_coord",
+            "edge_wt_coord_feat",
+            "edge_wt_region_boundary",
+        ]
         assert slic_compactness in [10, 30]
         self.split = split
-        self.preprocesspath = osp.join(self.processed_dir, f'{split}.pkl')
+        self.preprocesspath = osp.join(self.processed_dir, f"{split}.pkl")
         self.process()
 
-    
     @property
     def raw_file_names(self):
-        return ['train.pickle', 'val.pickle', 'test.pickle']
+        return ["train.pickle", "val.pickle", "test.pickle"]
 
     @property
     def raw_dir(self):
-        return osp.join(self.root,
-                        'slic_compactness_' + str(self.slic_compactness),
-                        self.name,
-                        'raw')
-    
+        return osp.join(
+            self.root,
+            "slic_compactness_" + str(self.slic_compactness),
+            self.name,
+            "raw",
+        )
+
     @property
     def processed_dir(self):
-        return osp.join(self.root,
-                        'slic_compactness_' + str(self.slic_compactness),
-                        self.name,
-                        'processed')
-    
+        return osp.join(
+            self.root,
+            "slic_compactness_" + str(self.slic_compactness),
+            self.name,
+            "processed",
+        )
+
     @property
     def processed_file_names(self):
-        return ['train.pt', 'val.pt', 'test.pt']
-    
+        return ["train.pt", "val.pt", "test.pt"]
+
     @property
     def num_classes(self):
         r"""Number of classes for each node."""
@@ -134,13 +147,13 @@ class VOCSuperpixels_DGL(object):
         return len(self.graphs)
 
     def download(self):
-        makedirs(self.raw_dir)        
+        makedirs(self.raw_dir)
         shutil.rmtree(self.raw_dir)
         path = download_url(self.url[self.slic_compactness][self.name], self.root)
         extract_zip(path, self.root)
-        os.rename(osp.join(self.root, 'voc_superpixels_' + self.name), self.raw_dir)
+        os.rename(osp.join(self.root, "voc_superpixels_" + self.name), self.raw_dir)
         os.unlink(path)
-    
+
     def process(self):
         if osp.exists(self.preprocesspath):
             # if pre-processed file already exists
@@ -151,21 +164,21 @@ class VOCSuperpixels_DGL(object):
             if not osp.exists(osp.join(self.raw_dir, f"{self.split}.pickle")):
                 # if the raw file does not exist, then download it.
                 self.download()
-            
-            makedirs(self.processed_dir)  
-            for split in ['train', 'val', 'test']:
-                with open(osp.join(self.raw_dir, f'{split}.pickle'), 'rb') as f:
+
+            makedirs(self.processed_dir)
+            for split in ["train", "val", "test"]:
+                with open(osp.join(self.raw_dir, f"{split}.pickle"), "rb") as f:
                     graphs = pickle.load(f)
 
                 indices = range(len(graphs))
 
                 pbar = tqdm(total=len(indices))
-                pbar.set_description(f'Processing {split} dataset')
+                pbar.set_description(f"Processing {split} dataset")
 
                 self.graphs = []
                 for idx in indices:
-                    graph = graphs[idx] 
-                    
+                    graph = graphs[idx]
+
                     """
                     Each `graph` is a tuple (x, edge_attr, edge_index, y)
                         Shape of x : [num_nodes, 14]
@@ -181,7 +194,7 @@ class VOCSuperpixels_DGL(object):
                     dgl_graph.edata["feat"] = graph[1].to(torch.float)
                     dgl_graph.ndata["label"] = torch.LongTensor(graph[3])
                     self.graphs.append(dgl_graph)
-                    
+
                     pbar.update(1)
 
                 pbar.close()
@@ -190,7 +203,7 @@ class VOCSuperpixels_DGL(object):
                 print("# of graphs", len(self.graphs))
                 with open(osp.join(self.processed_dir, f"{split}.pkl"), "wb") as f:
                     pickle.dump(self.graphs, f)
-                    
+
     def __getitem__(self, idx):
         r"""Get the idx^th sample.
 
@@ -225,5 +238,5 @@ if __name__ == "__main__":
     train_dataloader = GraphDataLoader(dataset, batch_size=32, shuffle=False)
     for i, batched_g in enumerate(train_dataloader):
         print("batched graph", batched_g)
-        assert(batched_g.num_nodes()==batched_g.ndata["label"].shape[0])
+        assert batched_g.num_nodes() == batched_g.ndata["label"].shape[0]
         break

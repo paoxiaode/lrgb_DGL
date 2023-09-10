@@ -144,7 +144,6 @@ class PeptidesFunctionalDataset_DGL(object):
 
             # double-check prediction target
             split_dict = self.get_idx_split()
-            # pdb.set_trace()
             assert all(
                 [not any(torch.isnan(self.labels[i])) for i in split_dict["train"]]
             )

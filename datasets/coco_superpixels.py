@@ -145,7 +145,7 @@ class COCOSuperpixels_DGL(object):
         return len(self.graphs)
 
     def download(self):
-        makedirs(self.raw_dir)        
+        makedirs(self.raw_dir)
         shutil.rmtree(self.raw_dir)
         path = download_url(self.url[self.slic_compactness][self.name], self.root)
         extract_zip(path, self.root)
@@ -263,5 +263,5 @@ if __name__ == "__main__":
     train_dataloader = GraphDataLoader(dataset, batch_size=32, shuffle=False)
     for i, batched_g in enumerate(train_dataloader):
         print("batched graph", batched_g)
-        assert(batched_g.num_nodes()==batched_g.ndata["label"].shape[0])
+        assert batched_g.num_nodes() == batched_g.ndata["label"].shape[0]
         break
