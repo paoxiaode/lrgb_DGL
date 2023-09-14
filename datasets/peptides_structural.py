@@ -95,12 +95,34 @@ class PeptidesStructuralDataset(DGLDataset):
         self.md5sum_stratified_split = "5a0114bdadc80b94fc7ae974f13ef061"
 
         super(PeptidesStructuralDataset, self).__init__(
-            name="Peptides-func",
+            name="Peptides-struc",
             raw_dir=raw_dir,
             url="https://www.dropbox.com/s/464u3303eu2u4zp/peptide_structure_dataset.csv.gz?dl=1",
             force_reload=force_reload,
             verbose=verbose,
         )
+
+    @property
+    def raw_data_path(self):
+        return os.path.join(self.raw_path, "peptide_structure_dataset.csv.gz")
+
+    @property
+    def split_data_path(self):
+        return os.path.join(
+            self.raw_path, "splits_random_stratified_peptide_structure.pickle"
+        )
+
+    @property
+    def graph_path(self):
+        return os.path.join(self.save_path, "Peptides-struc.bin")
+
+    @property
+    def num_atom_types(self):
+        return 9
+
+    @property
+    def num_bond_types(self):
+        return 3
 
     def _md5sum(self, path):
         hash_md5 = hashlib.md5()
@@ -118,12 +140,7 @@ class PeptidesStructuralDataset(DGLDataset):
                 raise ValueError("Unexpected MD5 hash of the downloaded file")
             open(os.path.join(self.raw_path, hash), "w").close()
             # Download train/val/test splits.
-            path_split1 = download(
-                self.url_stratified_split,
-                path=os.path.join(
-                    self.raw_path, "splits_random_stratified_peptide_structure.pickle"
-                ),
-            )
+            path_split1 = download(self.url_stratified_split, path=self.split_data_path)
             assert self._md5sum(path_split1) == self.md5sum_stratified_split
         else:
             print("Stop download.")
@@ -189,14 +206,6 @@ class PeptidesStructuralDataset(DGLDataset):
     def save(self):
         save_graphs(self.graph_path, self.graphs, labels={"labels": self.labels})
 
-    @property
-    def raw_data_path(self):
-        return os.path.join(self.raw_path, "peptide_structure_dataset.csv.gz")
-
-    @property
-    def graph_path(self):
-        return os.path.join(self.save_path, "Peptides-func.bin")
-
     def has_cache(self):
         return os.path.exists(self.graph_path)
 
@@ -206,10 +215,7 @@ class PeptidesStructuralDataset(DGLDataset):
         Returns:
             Dict with 'train', 'val', 'test', splits indices.
         """
-        split_file = os.path.join(
-            self.raw_path, "splits_random_stratified_peptide_structure.pickle"
-        )
-        with open(split_file, "rb") as f:
+        with open(self.split_data_path, "rb") as f:
             splits = pickle.load(f)
         split_dict = replace_numpy_with_torchtensor(splits)
         return split_dict
@@ -247,7 +253,7 @@ def collate_dgl(samples):
 
 if __name__ == "__main__":
     dataset = PeptidesStructuralDataset(raw_dir="data", verbose=True)
-    graph, lable = dataset[0]
+    graph, label = dataset[0]
     print(graph)
     print(len(dataset))
     split_dict = dataset.get_idx_split()
