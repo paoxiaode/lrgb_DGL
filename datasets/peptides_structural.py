@@ -64,6 +64,7 @@ class PeptidesStructuralDataset(DGLDataset):
     Examples
     ---------
     >>> from dgl.data import PeptidesStructuralDataset
+
     >>> dataset = PeptidesStructuralDataset()
     >>> len(dataset)
     15535

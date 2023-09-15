@@ -1,22 +1,16 @@
-import os, sys
-import os.path as osp
+import os
 import pickle
-import shutil
 
 import dgl
 import torch
-from dgl.data.utils import Subset
+from dgl.data import DGLDataset
+from dgl.data.utils import download, extract_archive, Subset
 from dgl.dataloading import GraphDataLoader
-from ogb.utils.url import extract_zip, makedirs
+from ogb.utils.url import makedirs
 from tqdm import tqdm
 
-pythonpath = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(0, pythonpath)
 
-from util import download_url
-
-
-class VOCSuperpixels_DGL(object):
+class VOCSuperpixelsDataset(DGLDataset):
     r"""The VOCSuperpixels dataset which contains image superpixels and a semantic segmentation label
     for each node superpixel.
 
@@ -51,33 +45,52 @@ class VOCSuperpixels_DGL(object):
     - Therefore, the final train, val and test splits are correspondingly original train (8498), new val (1428)
     and new test (1429) splits.
 
-    Args:
-        root (string): Root directory where the dataset should be saved.
-        name (string, optional): Option to select the graph construction format.
-            If :obj: `"edge_wt_only_coord"`, the graphs are 8-nn graphs with the edge weights computed based on
-            only spatial coordinates of superpixel nodes.
-            If :obj: `"edge_wt_coord_feat"`, the graphs are 8-nn graphs with the edge weights computed based on
-            combination of spatial coordinates and feature values of superpixel nodes.
-            If :obj: `"edge_wt_region_boundary"`, the graphs region boundary graphs where two regions (i.e.
-            superpixel nodes) have an edge between them if they share a boundary in the original image.
-            (default: :obj:`"edge_wt_region_boundary"`)
-        slic_compactness (int, optional): Option to select compactness of slic that was used for superpixels
-            (:obj:`10`, :obj:`30`). (default: :obj:`30`)
-        transform (callable, optional): A function/transform that takes in an
-            :obj:`torch_geometric.data.Data` object and returns a transformed
-            version. The data object will be transformed before every access.
-            (default: :obj:`None`)
-        pre_transform (callable, optional): A function/transform that takes in
-            an :obj:`torch_geometric.data.Data` object and returns a
-            transformed version. The data object will be transformed before
-            being saved to disk. (default: :obj:`None`)
-        pre_filter (callable, optional): A function that takes in an
-            :obj:`torch_geometric.data.Data` object and returns a boolean
-            value, indicating whether the data object should be included in the
-            final dataset. (default: :obj:`None`)
+    Parameters
+    ----------
+    raw_dir : str
+        Raw file directory to download/contains the input data directory.
+        Default: "~/.dgl/".
+    split : str
+        Should be chosen from ["train", "val", "test"]
+        Default: "train".
+    force_reload : bool
+        Whether to reload the dataset.
+        Default: False.
+    verbose : bool
+        Whether to print out progress information.
+        Default: False.
+    construct_format : str, optional:
+        Option to select the graph construction format.
+        Should be chosen from ["edge_wt_only_coord", "edge_wt_coord_feat", "edge_wt_region_boundary"]
+        If : "edge_wt_only_coord", the graphs are 8-nn graphs with the edge weights computed based on
+        only spatial coordinates of superpixel nodes.
+        If : "edge_wt_coord_feat", the graphs are 8-nn graphs with the edge weights computed based on
+        combination of spatial coordinates and feature values of superpixel nodes.
+        If : "edge_wt_region_boundary", the graphs region boundary graphs where two regions (i.e.
+        superpixel nodes) have an edge between them if they share a boundary in the original image.
+        Default: "edge_wt_region_boundary"
+    slic_compactness : int, optional:
+        Option to select compactness of slic that was used for superpixels
+        Should be chosen from [10, 30]
+        Default: 30.
+
+    Examples
+    ---------
+    >>> from dgl.data import VOCSuperpixelsDataset
+
+    >>> train_dataset = VOCSuperpixelsDataset(split="train")
+    >>> len(train_dataset)
+    8498
+    >>> train_dataset.num_classes
+    21
+    >>> graph= train_dataset[0]
+    >>> graph
+    Graph(num_nodes=460, num_edges=2632,
+        ndata_schemes={'feat': Scheme(shape=(14,), dtype=torch.float32), 'label': Scheme(shape=(), dtype=torch.int64)}
+        edata_schemes={'feat': Scheme(shape=(2,), dtype=torch.float32)})
     """
 
-    url = {
+    urls = {
         10: {
             "edge_wt_only_coord": "https://www.dropbox.com/s/rk6pfnuh7tq3t37/voc_superpixels_edge_wt_only_coord.zip?dl=1",
             "edge_wt_coord_feat": "https://www.dropbox.com/s/2a53nmfp6llqg8y/voc_superpixels_edge_wt_coord_feat.zip?dl=1",
@@ -92,46 +105,46 @@ class VOCSuperpixels_DGL(object):
 
     def __init__(
         self,
-        root="data",
-        name="edge_wt_region_boundary",
-        slic_compactness=30,
+        raw_dir=None,
         split="train",
+        force_reload=None,
+        verbose=None,
+        construct_format="edge_wt_region_boundary",
+        slic_compactness=30,
     ):
-        self.root = osp.join(root, "voc_superpixels")
-        self.name = name
+        self.construct_format = construct_format
         self.slic_compactness = slic_compactness
         assert split in ["train", "val", "test"]
-        assert name in [
+        assert construct_format in [
             "edge_wt_only_coord",
             "edge_wt_coord_feat",
             "edge_wt_region_boundary",
         ]
         assert slic_compactness in [10, 30]
         self.split = split
-        self.preprocesspath = osp.join(self.processed_dir, f"{split}.pkl")
-        self.process()
-
-    @property
-    def raw_file_names(self):
-        return ["train.pickle", "val.pickle", "test.pickle"]
-
-    @property
-    def raw_dir(self):
-        return osp.join(
-            self.root,
-            "slic_compactness_" + str(self.slic_compactness),
-            self.name,
-            "raw",
+        super(VOCSuperpixelsDataset, self).__init__(
+            name="PascalVOC-SP",
+            raw_dir=raw_dir,
+            url=self.urls[self.slic_compactness][self.construct_format],
+            force_reload=force_reload,
+            verbose=verbose,
         )
 
     @property
-    def processed_dir(self):
-        return osp.join(
-            self.root,
+    def save_path(self):
+        return os.path.join(
+            self.raw_path,
             "slic_compactness_" + str(self.slic_compactness),
-            self.name,
-            "processed",
+            self.construct_format,
         )
+
+    @property
+    def raw_data_path(self):
+        return os.path.join(self.save_path, f"{self.split}.pickle")
+
+    @property
+    def graph_path(self):
+        return os.path.join(self.save_path, f"processed_{self.split}.pkl")
 
     @property
     def processed_file_names(self):
@@ -147,62 +160,63 @@ class VOCSuperpixels_DGL(object):
         return len(self.graphs)
 
     def download(self):
-        makedirs(self.raw_dir)
-        shutil.rmtree(self.raw_dir)
-        path = download_url(self.url[self.slic_compactness][self.name], self.root)
-        extract_zip(path, self.root)
-        os.rename(osp.join(self.root, "voc_superpixels_" + self.name), self.raw_dir)
+        zip_file_path = os.path.join(
+            self.raw_path, "voc_superpixels_" + self.construct_format + ".zip"
+        )
+        path = download(self.url, path=zip_file_path)
+        extract_archive(path, self.raw_path, overwrite=True)
+        makedirs(self.save_path)
+        os.rename(
+            os.path.join(self.raw_path, "voc_superpixels_" + self.construct_format),
+            self.save_path,
+        )
         os.unlink(path)
 
     def process(self):
-        if osp.exists(self.preprocesspath):
-            # if pre-processed file already exists
-            with open(self.preprocesspath, "rb") as f:
-                f = pickle.load(f)
-                self.graphs = f
-        else:
-            if not osp.exists(osp.join(self.raw_dir, f"{self.split}.pickle")):
-                # if the raw file does not exist, then download it.
-                self.download()
+        with open(self.raw_data_path, "rb") as f:
+            graphs = pickle.load(f)
 
-            makedirs(self.processed_dir)
-            for split in ["train", "val", "test"]:
-                with open(osp.join(self.raw_dir, f"{split}.pickle"), "rb") as f:
-                    graphs = pickle.load(f)
+        indices = range(len(graphs))
 
-                indices = range(len(graphs))
+        pbar = tqdm(total=len(indices))
+        pbar.set_description(f"Processing {self.split} dataset")
 
-                pbar = tqdm(total=len(indices))
-                pbar.set_description(f"Processing {split} dataset")
+        self.graphs = []
+        for idx in indices:
+            graph = graphs[idx]
 
-                self.graphs = []
-                for idx in indices:
-                    graph = graphs[idx]
+            """
+            Each `graph` is a tuple (x, edge_attr, edge_index, y)
+                Shape of x : [num_nodes, 14]
+                Shape of edge_attr : [num_edges, 1] or [num_edges, 2]
+                Shape of edge_index : [2, num_edges]
+                Shape of y : [num_nodes]
+            """
+            dgl_graph = dgl.graph(
+                (graph[2][0], graph[2][1]),
+                num_nodes=len(graph[3]),
+            )
+            dgl_graph.ndata["feat"] = graph[0].to(torch.float)
+            dgl_graph.edata["feat"] = graph[1].to(torch.float)
+            dgl_graph.ndata["label"] = torch.LongTensor(graph[3])
+            self.graphs.append(dgl_graph)
 
-                    """
-                    Each `graph` is a tuple (x, edge_attr, edge_index, y)
-                        Shape of x : [num_nodes, 14]
-                        Shape of edge_attr : [num_edges, 1] or [num_edges, 2]
-                        Shape of edge_index : [2, num_edges]
-                        Shape of y : [num_nodes]
-                    """
-                    dgl_graph = dgl.graph(
-                        (graph[2][0], graph[2][1]),
-                        num_nodes=len(graph[3]),
-                    )
-                    dgl_graph.ndata["feat"] = graph[0].to(torch.float)
-                    dgl_graph.edata["feat"] = graph[1].to(torch.float)
-                    dgl_graph.ndata["label"] = torch.LongTensor(graph[3])
-                    self.graphs.append(dgl_graph)
+            pbar.update(1)
 
-                    pbar.update(1)
+        pbar.close()
+        print("Saving...")
 
-                pbar.close()
+    def load(self):
+        with open(self.graph_path, "rb") as f:
+            f = pickle.load(f)
+            self.graphs = f
 
-                print("Saving...")
-                print("# of graphs", len(self.graphs))
-                with open(osp.join(self.processed_dir, f"{split}.pkl"), "wb") as f:
-                    pickle.dump(self.graphs, f)
+    def save(self):
+        with open(os.path.join(self.graph_path), "wb") as f:
+            pickle.dump(self.graphs, f)
+
+    def has_cache(self):
+        return os.path.exists(self.graph_path)
 
     def __getitem__(self, idx):
         r"""Get the idx^th sample.
@@ -231,11 +245,15 @@ class VOCSuperpixels_DGL(object):
 
 
 if __name__ == "__main__":
-    dataset = VOCSuperpixels_DGL()
-    print(dataset)
-    print("# of classes for each node", dataset.num_classes)
-    print(dataset[0])
-    train_dataloader = GraphDataLoader(dataset, batch_size=32, shuffle=False)
+    train_dataset = VOCSuperpixelsDataset(raw_dir="data")
+    val_dataset = VOCSuperpixelsDataset(raw_dir="data", split="val")
+    test_dataset = VOCSuperpixelsDataset(raw_dir="data", split="test")
+
+    graph = train_dataset[0]
+    print(graph)
+    print(len(train_dataset))
+    print("# of classes for each node", train_dataset.num_classes)
+    train_dataloader = GraphDataLoader(train_dataset, batch_size=32, shuffle=False)
     for i, batched_g in enumerate(train_dataloader):
         print("batched graph", batched_g)
         assert batched_g.num_nodes() == batched_g.ndata["label"].shape[0]

@@ -1,7 +1,6 @@
 import hashlib
-import os, sys
+import os
 import pickle
-import shutil
 
 import dgl
 
@@ -58,6 +57,7 @@ class PeptidesFunctionalDataset(DGLDataset):
     Examples
     ---------
     >>> from dgl.data import PeptidesStructuralDataset
+
     >>> dataset = PeptidesStructuralDataset()
     >>> len(dataset)
     15535
